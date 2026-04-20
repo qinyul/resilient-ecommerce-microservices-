@@ -2,11 +2,11 @@
 
 # 1. Protobuf Generation
 proto:
-	protoc --go_out=. --go_opt=paths=source_relative \
-		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+	protoc --go_out=. --go_opt=module=github.com/qinyul/resilient-ecommerce-microservices \
+		--go-grpc_out=. --go-grpc_opt=module=github.com/qinyul/resilient-ecommerce-microservices \
 		proto/order/v1/order.proto
-	protoc --go_out=. --go_opt=paths=source_relative \
-		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+	protoc --go_out=. --go_opt=module=github.com/qinyul/resilient-ecommerce-microservices \
+		--go-grpc_out=. --go-grpc_opt=module=github.com/qinyul/resilient-ecommerce-microservices \
 		proto/payment/v1/payment.proto
 
 # 2. Local Build

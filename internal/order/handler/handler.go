@@ -60,6 +60,30 @@ func (h *OrderHandler) GetOrder(ctx context.Context, req *pb.GetOrderRequest) (*
 		return nil, status.Errorf(codes.Internal, "failed to get order: %v", err)
 	}
 
+	return mapOrderToPb(order), nil
+}
+
+func (h *OrderHandler) ListOrders(ctx context.Context, req *pb.ListOrdersRequest) (*pb.ListOrdersResponse,error) {
+	if req.UserId == "" {
+		return nil, status.Error(codes.InvalidArgument,"user id is required")
+	}
+
+	orders, err := h.service.ListOrders(ctx, req.UserId)
+	if err != nil {
+		return  nil, status.Errorf(codes.Internal,"failed to list orders: %v",err)
+	}
+
+	pbOrders := make([]*pb.GetOrderResponse, len(orders))
+	for i, order := range orders {
+		pbOrders[i] = mapOrderToPb(order)
+	}
+
+	return  &pb.ListOrdersResponse{
+		Orders: pbOrders,
+	}, nil
+} 
+
+func mapOrderToPb(order *domain.Order) *pb.GetOrderResponse {
 	items := make([]*pb.OrderItem, len(order.Items))
 	for i, item := range order.Items {
 		items[i] = &pb.OrderItem{
@@ -84,7 +108,7 @@ func (h *OrderHandler) GetOrder(ctx context.Context, req *pb.GetOrderRequest) (*
 		},
 		Status:    mapDomainStatusToPb(order.Status),
 		CreatedAt: timestamppb.New(order.CreatedAt),
-	}, nil
+	}
 }
 
 func mapDomainStatusToPb(s domain.OrderStatus) pb.OrderStatus {

@@ -95,6 +95,14 @@ func (s *orderService) GetOrder(ctx context.Context, id string) (*domain.Order, 
 	return order, nil
 }
 
+func (s *orderService) ListOrders(ctx context.Context, userID string) ([]*domain.Order, error) {
+	orders,err := s.repo.ListOrders(ctx,userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list orders: %w",err)
+	}
+	return orders,nil
+}
+
 func (s *orderService) UpdateStatus(ctx context.Context, id string, status domain.OrderStatus) error {
 	order, err := s.repo.GetOrder(ctx, id)
 	if err != nil {

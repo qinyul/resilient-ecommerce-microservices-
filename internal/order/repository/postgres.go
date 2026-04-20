@@ -86,6 +86,89 @@ func (r *postgresOrderRepository) GetOrder(ctx context.Context, id string) (*dom
 	return r.getOrder(ctx, r.db, id, false)
 }
 
+// ListOrders retrieves all orders for a spesific user.
+func (r *postgresOrderRepository) ListOrders(ctx context.Context, userID string) ([]*domain.Order, error) {
+	query := `
+		SELECT
+			o.id, o.user_id, o.status, o.currency, o.total_units, o.total_nanos, o.created_at, o.updated_at,
+			oi.id,oi.product_id, oi.quantity, oi.currency, oi.unit_units, oi.unit_nanos
+		FROM orders o
+		LEFT JOIN order_items oi ON o.id = oi.order_id
+		WHERE o.user_id = $1
+		ORDER BY o.created_at DESC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list orders: %w", err)
+	}
+	defer rows.Close()
+
+	orderMap := make(map[string]*domain.Order)
+	var orderIDs []string
+
+	for rows.Next() {
+		var itemID, itemProductID sql.NullString
+		var itemQuantity sql.NullInt32
+		var itemCurrency sql.NullString
+		var itemUnits sql.NullInt64
+		var itemNanos sql.NullInt32
+
+		var o domain.Order
+		err := rows.Scan(
+			&o.ID,
+			&o.UserID,
+			&o.Status,
+			&o.TotalPrice.Currency,
+			&o.TotalPrice.Units,
+			&o.TotalPrice.Nanos,
+			&o.CreatedAt,
+			&o.UpdatedAt,
+			&itemID,
+			&itemProductID,
+			&itemQuantity,
+			&itemCurrency,
+			&itemUnits,
+			&itemNanos,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan order row: %w", err)
+		}
+
+		if _, ok := orderMap[o.ID]; !ok {
+			order := o
+			order.Items = []domain.OrderItem{}
+			orderMap[o.ID] = &order
+			orderIDs = append(orderIDs, o.ID)
+		}
+
+		if itemID.Valid {
+			orderMap[o.ID].Items = append(orderMap[o.ID].Items, domain.OrderItem{
+				ID:        itemID.String,
+				OrderID:   o.ID,
+				ProductID: itemProductID.String,
+				Quantity:  int(itemQuantity.Int32),
+				UnitPrice: domain.Money{
+					Currency: itemCurrency.String,
+					Units:    itemUnits.Int64,
+					Nanos:    itemNanos.Int32,
+				},
+			})
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating order rows: %w", err)
+	}
+
+	orders := make([]*domain.Order, 0, len(orderIDs))
+	for _, id := range orderIDs {
+		orders = append(orders, orderMap[id])
+	}
+
+	return orders, nil
+}
+
 func (r *postgresOrderRepository) getOrder(ctx context.Context, q interface {
 	QueryContext(context.Context, string, ...interface{}) (*sql.Rows, error)
 }, id string, forUpdate bool) (*domain.Order, error) {

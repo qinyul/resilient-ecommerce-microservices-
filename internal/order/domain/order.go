@@ -74,6 +74,7 @@ type OrderRepository interface {
 	CreateOrder(ctx context.Context, order *Order) error
 	GetOrder(ctx context.Context, id string) (*Order, error)
 	UpdateStatus(ctx context.Context, id string, status OrderStatus) error
+	ListOrders(ctx context.Context, userID string) ([]*Order,error)
 }
 
 // MessageBroker defines the interface for publishing order-related events.
@@ -98,5 +99,6 @@ type CreateOrderInput struct {
 type OrderService interface {
 	PlaceOrder(ctx context.Context, input CreateOrderInput) (*Order, error)
 	GetOrder(ctx context.Context, id string) (*Order, error)
+	ListOrders(ctx context.Context, userID string) ([]*Order, error)
 	UpdateStatus(ctx context.Context, id string, status OrderStatus) error
 }

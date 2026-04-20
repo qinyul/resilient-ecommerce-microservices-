@@ -16,6 +16,7 @@ message Money {
 service OrderService {
   rpc CreateOrder (CreateOrderRequest) returns (CreateOrderResponse);
   rpc GetOrder (GetOrderRequest) returns (GetOrderResponse);
+  rpc ListOrders (ListOrdersRequest) returns (ListOrdersResponse);
 }
 
 enum OrderStatus {
@@ -24,6 +25,14 @@ enum OrderStatus {
   ORDER_STATUS_PAID = 2;
   ORDER_STATUS_FAILED = 3;
   ORDER_STATUS_CANCELED = 4;
+}
+
+message ListOrdersRequest {
+  string user_id = 1;
+}
+
+message ListOrdersResponse {
+  repeated GetOrderResponse orders = 1;
 }
 
 message OrderItem {
