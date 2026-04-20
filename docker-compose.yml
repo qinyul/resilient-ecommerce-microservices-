@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: ecommerce_rabbitmq
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MGMT_PORT:-15672}:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
+    networks:
+      - ecommerce_net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  order-db:
+    image: postgres:16-alpine
+    container_name: ecommerce_order_db
+    ports:
+      - "${ORDER_DB_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${ORDER_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${ORDER_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${ORDER_DB_NAME:-orders}
+    volumes:
+      - order_db_data:/var/lib/postgresql/data
+      - ./deploy/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ecommerce_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ORDER_DB_USER:-postgres} -d ${ORDER_DB_NAME:-orders}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  order-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner # Assuming a multi-stage Dockerfile with an 'order' target
+    container_name: order_service
+    command: ["/app/order"]
+    ports:
+      - "${ORDER_PORT:-50051}:50051"
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      ORDER_PORT: 50051
+      ORDER_DB_HOST: order-db
+      ORDER_DB_PORT: 5432
+      ORDER_DB_USER: ${ORDER_DB_USER:-postgres}
+      ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD:-postgres}
+      ORDER_DB_NAME: ${ORDER_DB_NAME:-orders}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
+    depends_on:
+      order-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    container_name: payment_service
+    command: ["/app/payment"]
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
+      RABBITMQ_ROUTING_KEY: order_created
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+
+networks:
+  ecommerce_net:
+    driver: bridge
+
+volumes:
+  order_db_data:

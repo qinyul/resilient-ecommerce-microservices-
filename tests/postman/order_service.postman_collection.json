@@ -1,0 +1,55 @@
+{
+	"info": {
+		"name": "Resilient Ecommerce - Order Service",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Create Order",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"user_id\": \"user-uuid-here\",\n    \"items\": [\n        {\n            \"product_id\": \"prod-1\",\n            \"quantity\": 2\n        },\n        {\n            \"product_id\": \"prod-2\",\n            \"quantity\": 1\n        }\n    ]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:50051/order.v1.OrderService/CreateOrder",
+					"host": ["localhost"],
+					"port": "50051",
+					"path": ["order.v1.OrderService", "CreateOrder"]
+				},
+				"description": "Note: In Postman, use the gRPC request type and import proto/order/v1/order.proto to get full autocomplete."
+			},
+			"response": []
+		},
+		{
+			"name": "Get Order",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"order_id\": \"order-uuid-returned-from-create\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:50051/order.v1.OrderService/GetOrder",
+					"host": ["localhost"],
+					"port": "50051",
+					"path": ["order.v1.OrderService", "GetOrder"]
+				}
+			},
+			"response": []
+		}
+	]
+}

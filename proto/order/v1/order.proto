@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package order.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/qinyul/resilient-ecommerce-microservices/pb/order/v1;order";
+
+// Standard money message to avoid precision issues
+message Money {
+  string currency_code = 1;
+  int64 units = 2;
+  int32 nanos = 3;
+}
+
+service OrderService {
+  rpc CreateOrder (CreateOrderRequest) returns (CreateOrderResponse);
+  rpc GetOrder (GetOrderRequest) returns (GetOrderResponse);
+}
+
+enum OrderStatus {
+  ORDER_STATUS_UNSPECIFIED = 0;
+  ORDER_STATUS_PENDING = 1;
+  ORDER_STATUS_PAID = 2;
+  ORDER_STATUS_FAILED = 3;
+  ORDER_STATUS_CANCELED = 4;
+}
+
+message OrderItem {
+  string product_id = 1;
+  uint32 quantity = 2;
+  Money price = 3;
+}
+
+message CreateOrderItem {
+  string product_id = 1;
+  uint32 quantity = 2;
+}
+
+message CreateOrderRequest {
+  string user_id = 1;
+  repeated CreateOrderItem items = 2;
+  string idempotency_key = 3; // Essential for retries in distributed systems
+}
+
+message CreateOrderResponse {
+  string order_id = 1;
+  OrderStatus status = 2;
+}
+
+message GetOrderRequest {
+  string order_id = 1;
+}
+
+message GetOrderResponse {
+  string order_id = 1;
+  string user_id = 2;
+  repeated OrderItem items = 3;
+  Money total_amount = 4;
+  OrderStatus status = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
