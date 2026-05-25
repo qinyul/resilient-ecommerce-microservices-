@@ -12,6 +12,21 @@ type Config struct {
 	Port     string
 	Database DatabaseConfig
 	RabbitMQ RabbitMQConfig
+	Product  ServiceConfig
+	Gateway  GatewayConfig
+}
+
+type ServiceConfig struct {
+	Port     string
+	Database DatabaseConfig
+}
+
+type GatewayConfig struct {
+	Port               string
+	OrderServiceAddr   string
+	ProductServiceAddr string
+	RateLimitRate      float64
+	RateLimitCap       float64
 }
 
 type DatabaseConfig struct {
@@ -56,6 +71,24 @@ func Load() (*Config, error) {
 			Port:            getEnv("RABBITMQ_PORT", "5672"),
 			ExchangeName:    getEnv("RABBITMQ_EXCHANGE", "order_exchange"),
 			OrderCreatedKey: getEnv("RABBITMQ_ROUTING_KEY", "order_created"),
+		},
+		Product: ServiceConfig{
+			Port: getEnv("PRODUCT_PORT", "50052"),
+			Database: DatabaseConfig{
+				Host:     getEnv("PRODUCT_DB_HOST", "localhost"),
+				Port:     getEnv("PRODUCT_DB_PORT", "5432"),
+				User:     getEnv("PRODUCT_DB_USER", "postgres"),
+				Password: getEnv("PRODUCT_DB_PASSWORD", "postgres"),
+				Name:     getEnv("PRODUCT_DB_NAME", "products"),
+				SSLMode:  getEnv("PRODUCT_DB_SSLMODE", "disable"),
+			},
+		},
+		Gateway: GatewayConfig{
+			Port:               getEnv("GATEWAY_PORT", "8080"),
+			OrderServiceAddr:   getEnv("ORDER_SERVICE_ADDR", "localhost:50051"),
+			ProductServiceAddr: getEnv("PRODUCT_SERVICE_ADDR", "localhost:50052"),
+			RateLimitRate:      5.0,  // 5 requests per second
+			RateLimitCap:       10.0, // Burst up to 10
 		},
 	}, nil
 }

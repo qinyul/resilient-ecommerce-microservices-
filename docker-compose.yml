@@ -89,9 +89,74 @@ services:
     networks:
       - ecommerce_net
 
+  product-db:
+    image: postgres:16-alpine
+    container_name: ecommerce_product_db
+    ports:
+      - "${PRODUCT_DB_PORT:-5433}:5432"
+    environment:
+      POSTGRES_USER: ${PRODUCT_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${PRODUCT_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${PRODUCT_DB_NAME:-products}
+    volumes:
+      - product_db_data:/var/lib/postgresql/data
+      - ./deploy/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ecommerce_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PRODUCT_DB_USER:-postgres} -d ${PRODUCT_DB_NAME:-products}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  product-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    container_name: product_service
+    command: ["/app/product"]
+    ports:
+      - "${PRODUCT_PORT:-50052}:50052"
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      PRODUCT_PORT: 50052
+      PRODUCT_DB_HOST: product-db
+      PRODUCT_DB_PORT: 5432
+      PRODUCT_DB_USER: ${PRODUCT_DB_USER:-postgres}
+      PRODUCT_DB_PASSWORD: ${PRODUCT_DB_PASSWORD:-postgres}
+      PRODUCT_DB_NAME: ${PRODUCT_DB_NAME:-products}
+    depends_on:
+      product-db:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+
+  gateway-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    container_name: gateway_service
+    command: ["/app/gateway"]
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      GATEWAY_PORT: 8080
+      ORDER_SERVICE_ADDR: order-service:50051
+      PRODUCT_SERVICE_ADDR: product-service:50052
+    depends_on:
+      - order-service
+      - product-service
+    networks:
+      - ecommerce_net
+
 networks:
   ecommerce_net:
     driver: bridge
 
 volumes:
   order_db_data:
+  product_db_data:

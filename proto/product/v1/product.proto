@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package product.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/qinyul/resilient-ecommerce-microservices/pb/product/v1;product";
+
+// Standard money message to avoid precision issues
+message Money {
+  string currency_code = 1;
+  int64 units = 2;
+  int32 nanos = 3;
+}
+
+service ProductService {
+  rpc CreateProduct (CreateProductRequest) returns (CreateProductResponse);
+  rpc GetProduct (GetProductRequest) returns (GetProductResponse);
+}
+
+message Product {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  Money price = 4;
+  bool is_active = 5; 
+  google.protobuf.Timestamp created_at = 6; // Audit field
+  google.protobuf.Timestamp updated_at = 7; // Audit field
+}
+
+message CreateProductRequest {
+  string name = 1;
+  string description = 2;
+  Money price = 3;
+}
+
+message CreateProductResponse {
+  Product product = 1;
+}
+
+message GetProductRequest {
+  string id = 1;
+}
+
+message GetProductResponse {
+  Product product = 1;
+}

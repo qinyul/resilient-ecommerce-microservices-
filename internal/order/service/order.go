@@ -10,20 +10,17 @@ import (
 )
 
 type orderService struct {
-	repo          domain.OrderRepository
-	broker        domain.MessageBroker
-	productClient domain.ProductClient
+	repo   domain.OrderRepository
+	broker domain.MessageBroker
 }
 
 func NewOrderService(
 	repo domain.OrderRepository,
 	broker domain.MessageBroker,
-	productClient domain.ProductClient,
 ) domain.OrderService {
 	return &orderService{
-		repo:          repo,
-		broker:        broker,
-		productClient: productClient,
+		repo:   repo,
+		broker: broker,
 	}
 }
 
@@ -38,20 +35,14 @@ func (s *orderService) PlaceOrder(ctx context.Context, input domain.CreateOrderI
 
 	items := make([]domain.OrderItem, len(input.Items))
 	for i, item := range input.Items {
-		// Fetch actual price from Product API
-		product, err := s.productClient.GetProduct(ctx, item.ProductID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch product %s: %w", item.ProductID, err)
-		}
-
 		items[i] = domain.OrderItem{
 			ProductID: item.ProductID,
 			Quantity:  item.Quantity,
-			UnitPrice: product.Price,
+			UnitPrice: item.UnitPrice,
 		}
 
 		// Calculate item total: price * quantity
-		itemTotalNanos := (product.Price.Units*1e9 + int64(product.Price.Nanos)) * int64(item.Quantity)
+		itemTotalNanos := (item.UnitPrice.Units*1e9 + int64(item.UnitPrice.Nanos)) * int64(item.Quantity)
 
 		totalUnits += itemTotalNanos / 1e9
 		totalNanos += int32(itemTotalNanos % 1e9)

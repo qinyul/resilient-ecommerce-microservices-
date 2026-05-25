@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/qinyul/resilient-ecommerce-microservices/internal/order/broker"
-	"github.com/qinyul/resilient-ecommerce-microservices/internal/order/client"
 	"github.com/qinyul/resilient-ecommerce-microservices/internal/order/handler"
 	"github.com/qinyul/resilient-ecommerce-microservices/internal/order/repository"
 	"github.com/qinyul/resilient-ecommerce-microservices/internal/order/service"
@@ -68,8 +67,7 @@ func main() {
 	// Wire dependencies
 	repo := repository.NewPostgresOrderRepository(database)
 	messageBroker := broker.NewRabbitMQBroker(rmqClient)
-	productClient := client.NewProductStubClient()
-	orderService := service.NewOrderService(repo, messageBroker, productClient)
+	orderService := service.NewOrderService(repo, messageBroker)
 	orderHandler := handler.NewOrderHandler(orderService)
 
 	// Setup Payment Completed Consumer

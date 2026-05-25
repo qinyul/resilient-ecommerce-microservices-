@@ -1,5 +1,5 @@
 # Stage 1: Build stage
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git
@@ -15,8 +15,10 @@ COPY . .
 
 # Build the binaries
 # Using CGO_ENABLED=0 for static binaries that work in alpine
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/gateway ./cmd/gateway/main.go
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/order ./cmd/order/main.go
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/payment ./cmd/payment/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/product ./cmd/product/main.go
 
 # Stage 2: Final runtime stage
 FROM alpine:latest AS runner
@@ -27,8 +29,10 @@ RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
 
 # Copy binaries from the builder stage
+COPY --from=builder /app/bin/gateway /app/gateway
 COPY --from=builder /app/bin/order /app/order
 COPY --from=builder /app/bin/payment /app/payment
+COPY --from=builder /app/bin/product /app/product
 
-# Default entrypoint (will be overridden by docker-compose)
-ENTRYPOINT ["/app/order"]
+# Default command (will be overridden by docker-compose)
+CMD ["/app/order"]
