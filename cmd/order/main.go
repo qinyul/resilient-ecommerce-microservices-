@@ -19,7 +19,10 @@ import (
 	pkgbroker "github.com/qinyul/resilient-ecommerce-microservices/pkg/broker"
 	"github.com/qinyul/resilient-ecommerce-microservices/pkg/config"
 	"github.com/qinyul/resilient-ecommerce-microservices/pkg/rabbitmq"
+	"github.com/qinyul/resilient-ecommerce-microservices/pkg/telemetry"
 	"github.com/qinyul/resilient-ecommerce-microservices/worker"
+
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -38,6 +41,20 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	// Initialize OpenTelemetry
+	shutdownCtx, cancelShutdownCtx := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelShutdownCtx()
+	shutdown, err := telemetry.InitTracerProvider(shutdownCtx, "order-service", cfg.AppEnv, cfg.Telemetry.OTLPEndpoint, cfg.Telemetry.SampleRate)
+	if err != nil {
+		slog.Error("failed to initialize tracer provider", "error", err)
+	} else {
+		defer func() {
+			if err := shutdown(context.Background()); err != nil {
+				slog.Error("failed to shutdown tracer provider", "error", err)
+			}
+		}()
+	}
 
 	// Initialize Database
 	database, err := db.NewPostgresDB(ctx, db.Config{
@@ -94,7 +111,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+	)
 	pb.RegisterOrderServiceServer(grpcServer, orderHandler)
 
 	if cfg.AppEnv != "production" {

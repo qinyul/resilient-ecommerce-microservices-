@@ -17,6 +17,9 @@ import (
 	"github.com/qinyul/resilient-ecommerce-microservices/internal/product/service"
 	pb "github.com/qinyul/resilient-ecommerce-microservices/pb/product/v1"
 	"github.com/qinyul/resilient-ecommerce-microservices/pkg/config"
+	"github.com/qinyul/resilient-ecommerce-microservices/pkg/telemetry"
+
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -37,6 +40,20 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	// Initialize OpenTelemetry
+	shutdownCtx, cancelShutdownCtx := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelShutdownCtx()
+	shutdown, err := telemetry.InitTracerProvider(shutdownCtx, "product-service", cfg.AppEnv, cfg.Telemetry.OTLPEndpoint, cfg.Telemetry.SampleRate)
+	if err != nil {
+		slog.Error("failed to initialize tracer provider", "error", err)
+	} else {
+		defer func() {
+			if err := shutdown(context.Background()); err != nil {
+				slog.Error("failed to shutdown tracer provider", "error", err)
+			}
+		}()
+	}
 
 	// Initialize Database
 	database, err := db.NewPostgresDB(ctx, db.Config{
@@ -67,6 +84,7 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer(
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.ChainUnaryInterceptor(
 			// 1. Recover from panics and return codes.Internal
 			recovery.UnaryServerInterceptor(),

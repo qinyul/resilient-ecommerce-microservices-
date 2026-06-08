@@ -6,6 +6,9 @@ import (
 	"fmt"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"time"
+
+	"github.com/uptrace/opentelemetry-go-extra/otelsql"
+	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 )
 
 type Config struct {
@@ -25,11 +28,14 @@ func NewPostgresDB(ctx context.Context, cfg Config) (*sql.DB, error) {
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.DBName, cfg.SSLMode)
 
-	// Open connection using pgx stdlib driver
-	db, err := sql.Open("pgx", dsn)
+	// Open connection using pgx stdlib driver wrapped with OpenTelemetry
+	db, err := otelsql.Open("pgx", dsn, otelsql.WithAttributes(semconv.DBSystemPostgreSQL))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database connection: %w", err)
 	}
+
+	// tracking pool health
+	otelsql.ReportDBStatsMetrics(db, otelsql.WithAttributes(semconv.DBSystemPostgreSQL))
 
 	// Set connection pool settings
 	if cfg.MaxOpenConns == 0 {

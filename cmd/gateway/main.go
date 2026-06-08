@@ -14,6 +14,10 @@ import (
 	orderpb "github.com/qinyul/resilient-ecommerce-microservices/pb/order/v1"
 	productpb "github.com/qinyul/resilient-ecommerce-microservices/pb/product/v1"
 	"github.com/qinyul/resilient-ecommerce-microservices/pkg/config"
+	"github.com/qinyul/resilient-ecommerce-microservices/pkg/telemetry"
+
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -35,15 +39,37 @@ func main() {
 		"product_service", cfg.Gateway.ProductServiceAddr,
 	)
 
+	// Initialize OpenTelemetry
+	shutdownCtx, cancelShutdownCtx := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelShutdownCtx()
+	shutdown, err := telemetry.InitTracerProvider(shutdownCtx, "gateway-service", cfg.AppEnv, cfg.Telemetry.OTLPEndpoint, cfg.Telemetry.SampleRate)
+	if err != nil {
+		slog.Error("failed to initialize tracer provider", "error", err)
+	} else {
+		defer func() {
+			if err := shutdown(context.Background()); err != nil {
+				slog.Error("failed to shutdown tracer provider", "error", err)
+			}
+		}()
+	}
+
 	// Set up gRPC client connections
-	orderConn, err := grpc.NewClient(cfg.Gateway.OrderServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	orderConn, err := grpc.NewClient(
+		cfg.Gateway.OrderServiceAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
+	)
 	if err != nil {
 		slog.Error("failed to connect to order service", "error", err)
 		os.Exit(1)
 	}
 	defer orderConn.Close()
 
-	productConn, err := grpc.NewClient(cfg.Gateway.ProductServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	productConn, err := grpc.NewClient(
+		cfg.Gateway.ProductServiceAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
+	)
 	if err != nil {
 		slog.Error("failed to connect to product service", "error", err)
 		os.Exit(1)
@@ -66,9 +92,12 @@ func main() {
 	mux.HandleFunc("GET /api/v1/products/{id}", middleware.RateLimit(limiter, middleware.Logging(handler.HandleGetProduct(productClient))))
 	mux.HandleFunc("GET /healthz", handler.HandleHealthz)
 
+	// Wrap the mux with OTel HTTP handler
+	handlerWithMetrics := otelhttp.NewHandler(mux, "gateway-service")
+
 	server := &http.Server{
 		Addr:    ":" + cfg.Gateway.Port,
-		Handler: mux,
+		Handler: handlerWithMetrics,
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
