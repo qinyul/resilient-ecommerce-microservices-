@@ -3,8 +3,6 @@ package telemetry
 import (
 	"context"
 	"fmt"
-	"os"
-	"strconv"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -17,8 +15,8 @@ import (
 
 // InitTracerProvider initializes an OTLP exporter, and configures the corresponding trace and
 // metric providers. It returns a function to cleanly shutdown the provider.
-func InitTracerProvider(ctx context.Context, serviceName, environment, endpoint string) (func(context.Context) error, error) {
-	// Configure OTLP Exporter via gRPC
+func InitTracerProvider(ctx context.Context, serviceName, environment, endpoint string, sampleRate float64) (func(context.Context) error, error) {
+	// 1. Configure OTLP Exporter via gRPC
 	exporter, err := otlptracegrpc.New(ctx,
 		otlptracegrpc.WithEndpoint(endpoint),
 		otlptracegrpc.WithInsecure(),
@@ -27,28 +25,20 @@ func InitTracerProvider(ctx context.Context, serviceName, environment, endpoint 
 		return nil, fmt.Errorf("failed to create trace exporter: %w", err)
 	}
 
-	// 3. Define the resource (service name, version, environment)
+	// 2. Define the resource (service name, version, environment)
 	res, err := resource.Merge(
 		resource.Default(),
 		resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceName(serviceName),
-			semconv.DeploymentEnvironment(environment),
+			semconv.ServiceNameKey.String(serviceName),
+			semconv.DeploymentEnvironmentKey.String(environment),
 		),
 	)	
 	if err != nil {
 		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	// 4. Create TraceProvider with a BatchSpanProcessor
-	// Use 1.0 (100%) for development, but dial this down (e.g., 0.05) in production
-	sampleRate := 1.0
-	if rateStr := os.Getenv("OTEL_SAMPLING_RATE"); rateStr != "" {
-		if parsedRate, err := strconv.ParseFloat(rateStr, 64); err == nil {
-			sampleRate = parsedRate
-		}
-	}
-
+	// 3. Create TraceProvider with a BatchSpanProcessor
 	sampler := sdktrace.ParentBased(sdktrace.TraceIDRatioBased(sampleRate))
 
 	tp := sdktrace.NewTracerProvider(
@@ -60,12 +50,12 @@ func InitTracerProvider(ctx context.Context, serviceName, environment, endpoint 
 		sdktrace.WithResource(res),
 	)
 
-	// 5. Register our TraceProvider as the global so any imported
+	// 4. Register our TraceProvider as the global so any imported
 	// instrumentation in the future will default to using it
 	otel.SetTracerProvider(tp)
 
-	// 6. Register W3C Trace Context and Baggage as global propagators
-	// This ensures traces propage accross HTTP/gRPC/AMQP boundaries seamlessly.
+	// 5. Register W3C Trace Context and Baggage as global propagators
+	// This ensures traces propagate across HTTP/gRPC/AMQP boundaries seamlessly.
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
 		propagation.TraceContext{},
 		propagation.Baggage{},

@@ -3,6 +3,7 @@ package config
 import (
 	"log/slog"
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -97,7 +98,8 @@ func Load() (*Config, error) {
 			RateLimitCap:       10.0, // Burst up to 10
 		},
 		Telemetry: TelemetryConfig{
-			OTLPEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4317"),
+			OTLPEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "otel-collector:4317"),
+			SampleRate:   getEnvFloat("OTEL_SAMPLING_RATE", 1.0),
 		},
 	}, nil
 }
@@ -105,6 +107,15 @@ func Load() (*Config, error) {
 func getEnv(key, defaultValue string) string {
 	if value, exists := os.LookupEnv(key); exists {
 		return value
+	}
+	return defaultValue
+}
+
+func getEnvFloat(key string, defaultValue float64) float64 {
+	if value, exists := os.LookupEnv(key); exists {
+		if parsed, err := strconv.ParseFloat(value, 64); err == nil {
+			return parsed
+		}
 	}
 	return defaultValue
 }
