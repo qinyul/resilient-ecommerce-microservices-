@@ -12,13 +12,19 @@ type Config struct {
 	Port     string
 	Database DatabaseConfig
 	RabbitMQ RabbitMQConfig
-	Product  ServiceConfig
-	Gateway  GatewayConfig
+	Product   ServiceConfig
+	Gateway   GatewayConfig
+	Telemetry TelemetryConfig
 }
 
 type ServiceConfig struct {
 	Port     string
 	Database DatabaseConfig
+}
+
+type TelemetryConfig struct {
+	OTLPEndpoint string
+	SampleRate   float64
 }
 
 type GatewayConfig struct {
@@ -89,6 +95,9 @@ func Load() (*Config, error) {
 			ProductServiceAddr: getEnv("PRODUCT_SERVICE_ADDR", "localhost:50052"),
 			RateLimitRate:      5.0,  // 5 requests per second
 			RateLimitCap:       10.0, // Burst up to 10
+		},
+		Telemetry: TelemetryConfig{
+			OTLPEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4317"),
 		},
 	}, nil
 }

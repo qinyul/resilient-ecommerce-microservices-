@@ -1,0 +1,68 @@
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  pprof:
+    endpoint: 0.0.0.0:1777
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+        max_recv_msg_size_mib: 16
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # 1. The Gatekeeper: Prevents Out-Of-Memory (OOM) crashes
+  # In a container environmet, this calculates limits based on total allocated memory.
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 70
+    spike_limit_percentage: 20
+
+# 2. The Optimized: Reduces network calls and CPU overhead
+  batch:
+    timeout: 2s
+    send_batch_size: 8192
+    send_batch_max_size: 10000
+
+exporters:
+  otlp:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+    
+    # 3. The buffer: hold data if the target service is down or restart
+    sending_queue:
+      enabled: true
+      num_consumers: 4
+      queue_size: 5000
+    
+    # 4. The retry mechanism: Exponential backoff for transient network blips
+    retry_on_failure:
+      enabled: true
+      initial_interval: 2s
+      max_interval: 30s
+      max_elapsed_time: 300s
+
+  # For debugging
+  debug:
+    verbosity: detailed
+    # 5. Safey valve: Prevents the debug logger from causing disk/CPU starvation
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+service:
+  # Register the diagnostic extensions
+  extensions: [health_check, pprof, zpages]
+
+  pipelines:
+    traces:
+      receivers: [otlp]
+      # ORDER_MATTERS: memory_limiter MUST be the very first processor.
+      #  If batch comes first, memory is already allocated before the limiter can stop it.
+      processors: [memory_limiter,batch]
+      exporters: [otlp, debug]

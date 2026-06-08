@@ -153,6 +153,18 @@ services:
     networks:
       - ecommerce_net
 
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: ecommerce_jaeger
+    ports:
+      - "16686:16686" # Web UI
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - ecommerce_net
+
 networks:
   ecommerce_net:
     driver: bridge
