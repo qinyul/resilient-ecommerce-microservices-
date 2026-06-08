@@ -9,7 +9,9 @@ import (
 
 	"github.com/qinyul/resilient-ecommerce-microservices/internal/order/domain"
 	"github.com/qinyul/resilient-ecommerce-microservices/pkg/rabbitmq"
+	"github.com/qinyul/resilient-ecommerce-microservices/pkg/telemetry"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"go.opentelemetry.io/otel"
 )
 
 type rabbitMQBroker struct {
@@ -58,7 +60,11 @@ func (b *rabbitMQBroker) PublishOrderCreated(ctx context.Context, order *domain.
 		DeliveryMode: amqp.Persistent,
 		ContentType:  "application/json",
 		Body:         body,
+		Headers:      make(amqp.Table),
 	}
+
+	// Inject OpenTelemetry tracing context into RabbitMQ message headers
+	otel.GetTextMapPropagator().Inject(ctx, telemetry.AMQPHeadersCarrier{Headers: msg.Headers})
 
 	err = b.client.Publish(ctx, OrderExchange, OrderCreatedKey, msg)
 	if err != nil {

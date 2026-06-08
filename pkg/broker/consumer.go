@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"github.com/qinyul/resilient-ecommerce-microservices/pkg/rabbitmq"
+	"github.com/qinyul/resilient-ecommerce-microservices/pkg/telemetry"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"go.opentelemetry.io/otel"
 )
 
 // Handler defines the function signature for processing an AMQP delivery.
@@ -93,8 +95,17 @@ func (c *EventConsumer) Start(ctx context.Context) {
 						goto retry
 					}
 					
+					// Extract trace context from message headers
+					carrier := telemetry.AMQPHeadersCarrier{Headers: d.Headers}
+					msgCtx := otel.GetTextMapPropagator().Extract(ctx, carrier)
+
+					// Start a span for processing this message
+					processCtx, span := otel.Tracer("event-consumer").Start(msgCtx, "ProcessMessage")
+					
 					// Process message
-					err, requeue := c.handler(ctx, d)
+					err, requeue := c.handler(processCtx, d)
+					span.End() // End the span after handler finishes
+
 					if err != nil {
 						slog.Error("Handler error", "error", err, "queue", c.queueName, "requeue", requeue)
 						// If requeue is false and a DLX is configured, it goes to Dead Letter
