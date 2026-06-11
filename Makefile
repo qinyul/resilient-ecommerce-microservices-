@@ -1,4 +1,4 @@
-.PHONY: proto build test run-infra run-order run-payment docker-up docker-down clean
+.PHONY: proto build test run-infra run-order run-payment docker-up docker-down clean tf-init tf-validate tf-plan tf-apply tf-destroy
 
 # 1. Protobuf Generation
 proto:
@@ -47,6 +47,22 @@ docker-down:
 test:
 	go test -v ./...
 
-# 7. Cleanup
+# 7. Terraform Observability Provisioning
+tf-init:
+	docker run --rm --network host -v $(shell pwd)/terraform:/workspace -w /workspace hashicorp/terraform:latest init
+
+tf-validate:
+	docker run --rm --network host -v $(shell pwd)/terraform:/workspace -w /workspace hashicorp/terraform:latest validate
+
+tf-plan:
+	docker run --rm --network host -v $(shell pwd)/terraform:/workspace -w /workspace hashicorp/terraform:latest plan
+
+tf-apply:
+	docker run --rm --network host -v $(shell pwd)/terraform:/workspace -w /workspace hashicorp/terraform:latest apply -auto-approve
+
+tf-destroy:
+	docker run --rm --network host -v $(shell pwd)/terraform:/workspace -w /workspace hashicorp/terraform:latest destroy -auto-approve
+
+# 8. Cleanup
 clean:
 	rm -rf bin/

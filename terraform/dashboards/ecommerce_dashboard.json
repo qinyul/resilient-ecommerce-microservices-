@@ -1,0 +1,148 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "title": "API Gateway Request Rate (HTTP)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus_uid}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus_uid}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(http_server_request_duration_seconds_count[1m])) by (http_request_method, http_route)",
+          "legendFormat": "{{http_request_method}} {{http_route}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          },
+          "unit": "reqps"
+        }
+      }
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 2,
+      "title": "API Gateway Request Latency (p95)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus_uid}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus_uid}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_request_duration_seconds_bucket[5m])) by (le, http_request_method, http_route))",
+          "legendFormat": "{{http_request_method}} {{http_route}} (p95)",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          },
+          "unit": "s"
+        }
+      }
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "id": 3,
+      "title": "Aggregated Application Logs (Loki)",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "${loki_uid}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki_uid}"
+          },
+          "expr": "{service_name=~\".+\"} |= \"\"",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showLabels": true,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "showTime": true,
+        "sortOrder": "Descending"
+      }
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["microservices", "otel"],
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "E-Commerce Microservices Observability",
+  "version": 1
+}

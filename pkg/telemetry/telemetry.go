@@ -31,7 +31,7 @@ func InitTracerProvider(ctx context.Context, serviceName, environment, endpoint 
 	res, err := resource.Merge(
 		resource.Default(),
 		resource.NewWithAttributes(
-			semconv.SchemaURL,
+			"",
 			semconv.ServiceNameKey.String(serviceName),
 			semconv.DeploymentEnvironmentKey.String(environment),
 		),

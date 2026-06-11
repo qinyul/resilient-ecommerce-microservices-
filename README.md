@@ -110,6 +110,33 @@ Once the traffic simulation is running, telemetry data is actively pushed to the
 
 ---
 
+## 🎨 Provisioning Grafana Dashboards with Terraform
+
+We manage Grafana configuration as code using Terraform. The [terraform/](file:///home/barqi/barqi-repository/resilient-ecommerce-microservices/terraform) folder contains resources to:
+* Set up **Prometheus**, **Loki**, and **Jaeger** as Grafana Data Sources.
+* Configure **Exemplars** and **Derived Fields** to correlate traces with metrics and log entries.
+* Provision a pre-configured **E-Commerce Observability Dashboard** showing HTTP request rates, request latencies (p95), and aggregated logs from Loki.
+
+### Steps to Run:
+1. Make sure the Docker Compose stack is running (`make docker-up`).
+2. Run the Terraform initialization (downloads required provider plugins):
+   ```bash
+   make tf-init
+   ```
+3. (Optional) Validate the configuration files:
+   ```bash
+   make tf-validate
+   ```
+4. Apply and deploy the datasources and dashboard:
+   ```bash
+   make tf-apply
+   ```
+5. Get the direct dashboard URL from the output!
+
+*Note: The Makefile commands automatically run Terraform within a Docker container using the official HashiCorp image, so you do not need to install Terraform locally.*
+
+---
+
 ## 🛠️ Makefile Commands Reference
 
 The project includes a [Makefile](file:///home/barqi/barqi-repository/resilient-ecommerce-microservices/Makefile) with short commands to manage development tasks:
@@ -127,3 +154,9 @@ The project includes a [Makefile](file:///home/barqi/barqi-repository/resilient-
 | `make run-product` | Runs the Product service locally. |
 | `make test` | Runs all unit and integration tests. |
 | `make clean` | Deletes compiled binaries and clean workspace files. |
+| `make tf-init` | Initializes Terraform inside a Docker container. |
+| `make tf-validate` | Validates Terraform configuration files syntax. |
+| `make tf-plan` | Performs a Terraform dry-run plan. |
+| `make tf-apply` | Deploys the Grafana dashboards and datasources via Terraform. |
+| `make tf-destroy` | Tears down the provisioned Grafana dashboards and datasources. |
+

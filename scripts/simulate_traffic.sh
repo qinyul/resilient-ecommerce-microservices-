@@ -34,7 +34,13 @@ while true; do
   echo "  -> Fetched!"
 
   # 3. Create an Order
-  USER_ID="user-$(date +%s)"
+  if [ -f /proc/sys/kernel/random/uuid ]; then
+    USER_ID=$(cat /proc/sys/kernel/random/uuid)
+  elif command -v uuidgen >/dev/null 2>&1; then
+    USER_ID=$(uuidgen)
+  else
+    USER_ID=$(printf '%04x%04x-%04x-%04x-%04x-%04x%04x%04x\n' $RANDOM $RANDOM $RANDOM $RANDOM $RANDOM $RANDOM $RANDOM $RANDOM)
+  fi
   IDEMPOTENCY_KEY="key-$(date +%s)-$RANDOM"
   echo "[3] Creating Order for User: $USER_ID..."
   ORDER_RES=$(curl -s -X POST "$GATEWAY_URL/orders" -H "Content-Type: application/json" -d "{
@@ -48,7 +54,7 @@ while true; do
     ]
   }")
   
-  ORDER_ID=$(echo $ORDER_RES | grep -o '"id":"[^"]*' | grep -o '[^"]*$')
+  ORDER_ID=$(echo $ORDER_RES | grep -oE '"(order_)?id":"[^"]*' | grep -o '[^"]*$')
   if [ -n "$ORDER_ID" ]; then
     echo "  -> Order Created! ID: $ORDER_ID"
     # 4. Fetch the Order
