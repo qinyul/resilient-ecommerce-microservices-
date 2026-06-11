@@ -6,8 +6,10 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
@@ -61,5 +63,31 @@ func InitTracerProvider(ctx context.Context, serviceName, environment, endpoint 
 		propagation.Baggage{},
 	))
 
-	return tp.Shutdown, nil
+	// 6. Set up OTLP Metric Exporter via gRPC
+	metricExporter, err := otlpmetricgrpc.New(ctx,
+		otlpmetricgrpc.WithEndpoint(endpoint),
+		otlpmetricgrpc.WithInsecure(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create metric exporter: %w", err)
+	}
+	meterProvider := sdkmetric.NewMeterProvider(
+		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter, sdkmetric.WithInterval(10*time.Second))),
+		sdkmetric.WithResource(res),
+	)
+	otel.SetMeterProvider(meterProvider)
+
+	return func(c context.Context) error {
+		var errs []error
+		if err := tp.Shutdown(c); err != nil {
+			errs = append(errs, err)
+		}
+		if err := meterProvider.Shutdown(c); err != nil {
+			errs = append(errs, err)
+		}
+		if len(errs) > 0 {
+			return fmt.Errorf("shutdown errors: %v", errs)
+		}
+		return nil
+	}, nil
 }
