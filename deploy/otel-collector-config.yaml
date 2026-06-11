@@ -48,6 +48,9 @@ exporters:
       max_interval: 30s
       max_elapsed_time: 300s
 
+  # Exposes metrics for Prometheus to scrape
+  prometheus:
+    endpoint: "0.0.0.0:8889"
   # For debugging
   debug:
     verbosity: detailed
@@ -66,3 +69,7 @@ service:
       #  If batch comes first, memory is already allocated before the limiter can stop it.
       processors: [memory_limiter,batch]
       exporters: [otlp, debug]
+    metrics: # pipeline for metrics
+      receivers: [otlp]
+      processors: [memory_limiter,batch]
+      exporters: [prometheus]
