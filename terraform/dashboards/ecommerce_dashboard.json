@@ -120,7 +120,7 @@
             "type": "loki",
             "uid": "${loki_uid}"
           },
-          "expr": "{service_name=~\".+\"} |= \"\"",
+          "expr": "{job=~\".+\"}",
           "refId": "A"
         }
       ],

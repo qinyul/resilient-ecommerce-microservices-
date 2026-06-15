@@ -23,21 +23,11 @@ import (
 )
 
 func main() {
-	// Initialize structured logging
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	slog.SetDefault(logger)
-
 	cfg, err := config.Load()
 	if err != nil {
 		slog.Error("failed to load configuration", "error", err)
 		os.Exit(1)
 	}
-
-	slog.Info("Starting API Gateway...",
-		"port", cfg.Gateway.Port,
-		"order_service", cfg.Gateway.OrderServiceAddr,
-		"product_service", cfg.Gateway.ProductServiceAddr,
-	)
 
 	// Initialize OpenTelemetry
 	shutdownCtx, cancelShutdownCtx := context.WithTimeout(context.Background(), 5*time.Second)
@@ -52,6 +42,16 @@ func main() {
 			}
 		}()
 	}
+
+	// Initialize structured logging (multiplexes to stdout and OpenTelemetry)
+	logger := telemetry.InitLogger("gateway-service")
+	slog.SetDefault(logger)
+
+	slog.Info("Starting API Gateway...",
+		"port", cfg.Gateway.Port,
+		"order_service", cfg.Gateway.OrderServiceAddr,
+		"product_service", cfg.Gateway.ProductServiceAddr,
+	)
 
 	// Set up gRPC client connections
 	orderConn, err := grpc.NewClient(

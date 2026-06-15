@@ -14,6 +14,7 @@ import (
 	"github.com/qinyul/resilient-ecommerce-microservices/pkg/broker"
 	"github.com/qinyul/resilient-ecommerce-microservices/pkg/config"
 	"github.com/qinyul/resilient-ecommerce-microservices/pkg/rabbitmq"
+	"github.com/qinyul/resilient-ecommerce-microservices/pkg/telemetry"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -27,20 +28,34 @@ type PaymentCompletedEvent struct {
 }
 
 func main() {
-	// 1. Initialize Structured Logging
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	slog.SetDefault(logger)
-
-	// 2. Load Configuration
+	// 1. Load Configuration
 	cfg, err := config.Load()
 	if err != nil {
 		slog.Error("failed to load configuration", "error", err)
 		os.Exit(1)
 	}
 
-	// 3. Setup Graceful Shutdown Context
+	// 2. Setup Graceful Shutdown Context
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	// 3. Initialize OpenTelemetry
+	shutdownCtx, cancelShutdownCtx := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelShutdownCtx()
+	shutdown, err := telemetry.InitTracerProvider(shutdownCtx, "payment-service", cfg.AppEnv, cfg.Telemetry.OTLPEndpoint, cfg.Telemetry.SampleRate)
+	if err != nil {
+		slog.Error("failed to initialize tracer provider", "error", err)
+	} else {
+		defer func() {
+			if err := shutdown(context.Background()); err != nil {
+				slog.Error("failed to shutdown tracer provider", "error", err)
+			}
+		}()
+	}
+
+	// 4. Initialize Structured Logging (multiplexes to stdout and OpenTelemetry)
+	logger := telemetry.InitLogger("payment-service")
+	slog.SetDefault(logger)
 
 	slog.Info("Starting Payment Service...")
 

@@ -27,10 +27,6 @@ import (
 )
 
 func main() {
-	// Initialize structured logging
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	slog.SetDefault(logger)
-
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
@@ -54,6 +50,10 @@ func main() {
 			}
 		}()
 	}
+
+	// Initialize structured logging (multiplexes to stdout and OpenTelemetry)
+	logger := telemetry.InitLogger("product-service")
+	slog.SetDefault(logger)
 
 	// Initialize Database
 	database, err := db.NewPostgresDB(ctx, db.Config{

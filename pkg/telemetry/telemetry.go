@@ -6,17 +6,20 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/propagation"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 )
 
-// InitTracerProvider initializes an OTLP exporter, and configures the corresponding trace and
-// metric providers. It returns a function to cleanly shutdown the provider.
+// InitTracerProvider initializes OTLP exporters, and configures the corresponding trace,
+// metric, and log providers. It returns a function to cleanly shutdown the providers.
 func InitTracerProvider(ctx context.Context, serviceName, environment, endpoint string, sampleRate float64) (func(context.Context) error, error) {
 	// 1. Configure OTLP Exporter via gRPC
 	exporter, err := otlptracegrpc.New(ctx,
@@ -77,12 +80,29 @@ func InitTracerProvider(ctx context.Context, serviceName, environment, endpoint 
 	)
 	otel.SetMeterProvider(meterProvider)
 
+	// 7. Set up OTLP Log Exporter via gRPC
+	logExporter, err := otlploggrpc.New(ctx,
+		otlploggrpc.WithEndpoint(endpoint),
+		otlploggrpc.WithInsecure(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create log exporter: %w", err)
+	}
+	logProvider := sdklog.NewLoggerProvider(
+		sdklog.WithProcessor(sdklog.NewBatchProcessor(logExporter)),
+		sdklog.WithResource(res),
+	)
+	global.SetLoggerProvider(logProvider)
+
 	return func(c context.Context) error {
 		var errs []error
 		if err := tp.Shutdown(c); err != nil {
 			errs = append(errs, err)
 		}
 		if err := meterProvider.Shutdown(c); err != nil {
+			errs = append(errs, err)
+		}
+		if err := logProvider.Shutdown(c); err != nil {
 			errs = append(errs, err)
 		}
 		if len(errs) > 0 {
