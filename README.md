@@ -75,25 +75,36 @@ docker-compose ps
 
 ---
 
-## 🚦 Running the Traffic Simulator
+## 🚦 Running Traffic & Demo Simulators
 
-To demonstrate the microservices stack and generate telemetry data for recruiters, we have created an automated traffic simulation script: [scripts/simulate_traffic.sh](file:///home/barqi/barqi-repository/resilient-ecommerce-microservices/scripts/simulate_traffic.sh).
+To demonstrate the microservices stack and generate telemetry data for recruiters, we have created automated traffic simulation scripts. You can choose to run a pure "happy path" simulation or a realistic "demo" simulation that injects deliberate failures for observability showcasing.
 
-### What the Script Does
-The script loops continuously and simulates realistic e-commerce traffic by performing the following operations on the API Gateway:
-1. **Creates a Product** with a unique timestamped name and description.
-2. **Fetches the Product** details by the returned ID.
-3. **Creates an Order** for that product using an idempotency key.
-4. **Fetches the Order** details by the returned ID.
-5. **Sleeps** for 3 seconds before starting the next loop.
+### 1. The Recruiter Demo Script (Success & Errors)
+We highly recommend running the demo script. It generates a rich mix of 200 OKs, 400 Bad Requests, and 404 Not Found errors to populate your observability dashboards with diverse data.
+Script: [scripts/demo_traffic.sh](file:///home/barqi/barqi-repository/resilient-ecommerce-microservices/scripts/demo_traffic.sh)
 
-### How to Run It
-Run the script directly from your terminal:
+**What it does:**
+1. **The Happy Path:** Creates a product, fetches it, and successfully places an order.
+2. **The Error Path:** Attempts to fetch a fake product, sends a malformed JSON payload, and creates an order for a non-existent product.
+
+**Run it:**
+```bash
+./scripts/demo_traffic.sh
+```
+
+### 2. The Basic Simulator (Happy Path Only)
+If you only want clean, successful operational data, use the basic simulator.
+Script: [scripts/simulate_traffic.sh](file:///home/barqi/barqi-repository/resilient-ecommerce-microservices/scripts/simulate_traffic.sh)
+
+**What it does:**
+It continuously loops to create products and orders successfully, fetching them immediately after creation.
+
+**Run it:**
 ```bash
 ./scripts/simulate_traffic.sh
 ```
 
-**To stop the simulation**, press `Ctrl + C` in the terminal window.
+**To stop any simulation**, press `Ctrl + C` in the terminal window.
 
 ---
 
