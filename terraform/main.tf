@@ -38,8 +38,8 @@ resource "grafana_data_source" "loki" {
     derivedFields = [
       {
         datasourceUid = grafana_data_source.jaeger.uid
-        matcherRegex  = "\"trace_id\":\"(\\w+)\""
-        name          = "TraceID"
+        matcherRegex  = "(?:\"traceid\"|\"trace_id\")\\s*:\\s*\"?([a-fA-F0-9]+)\"?"
+        name          = "trace_id"
         url           = "$${__value.raw}"
       }
     ]
