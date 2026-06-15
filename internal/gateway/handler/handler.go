@@ -44,7 +44,7 @@ func HandleCreateProduct(client productpb.ProductServiceClient) http.HandlerFunc
 
 		resp, err := client.CreateProduct(r.Context(), gRPCReq)
 		if err != nil {
-			slog.Error("failed to create product via gRPC", "error", err)
+			slog.ErrorContext(r.Context(), "failed to create product via gRPC", "error", err)
 			http.Error(w, "internal server error: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -65,7 +65,7 @@ func HandleGetProduct(client productpb.ProductServiceClient) http.HandlerFunc {
 
 		resp, err := client.GetProduct(r.Context(), &productpb.GetProductRequest{Id: id})
 		if err != nil {
-			slog.Error("failed to get product via gRPC", "error", err, "id", id)
+			slog.ErrorContext(r.Context(), "failed to get product via gRPC", "error", err, "id", id)
 			http.Error(w, "product not found", http.StatusNotFound)
 			return
 		}
@@ -108,7 +108,7 @@ func HandleCreateOrder(client orderpb.OrderServiceClient) http.HandlerFunc {
 
 		resp, err := client.CreateOrder(r.Context(), gRPCReq)
 		if err != nil {
-			slog.Error("failed to create order via gRPC", "error", err)
+			slog.ErrorContext(r.Context(), "failed to create order via gRPC", "error", err)
 			http.Error(w, "internal server error: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -129,7 +129,7 @@ func HandleGetOrder(client orderpb.OrderServiceClient) http.HandlerFunc {
 
 		resp, err := client.GetOrder(r.Context(), &orderpb.GetOrderRequest{OrderId: id})
 		if err != nil {
-			slog.Error("failed to get order via gRPC", "error", err, "id", id)
+			slog.ErrorContext(r.Context(), "failed to get order via gRPC", "error", err, "id", id)
 			http.Error(w, "order not found", http.StatusNotFound)
 			return
 		}
@@ -149,7 +149,7 @@ func HandleListOrders(client orderpb.OrderServiceClient) http.HandlerFunc {
 
 		resp, err := client.ListOrders(r.Context(), &orderpb.ListOrdersRequest{UserId: userID})
 		if err != nil {
-			slog.Error("failed to list orders via gRPC", "error", err, "user_id", userID)
+			slog.ErrorContext(r.Context(), "failed to list orders via gRPC", "error", err, "user_id", userID)
 			http.Error(w, "failed to list orders", http.StatusInternalServerError)
 			return
 		}

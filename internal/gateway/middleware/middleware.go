@@ -54,7 +54,7 @@ func RateLimit(limiter *RateLimiter, next http.HandlerFunc) http.HandlerFunc {
 
 		l := limiter.GetLimiter(ip)
 		if !l.Allow() {
-			slog.Warn("Rate limit exceeded", "path", r.URL.Path, "ip", ip)
+			slog.WarnContext(r.Context(), "Rate limit exceeded", "path", r.URL.Path, "ip", ip)
 			http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 			return
 		}
@@ -68,7 +68,7 @@ func Logging(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		next.ServeHTTP(w, r)
-		slog.Info("HTTP Request handled",
+		slog.InfoContext(r.Context(), "HTTP Request handled",
 			"method", r.Method,
 			"path", r.URL.Path,
 			"duration_ms", time.Since(start).Milliseconds(),

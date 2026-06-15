@@ -23,7 +23,7 @@ func NewPaymentService(rmqClient *rabbitmq.Client) domain.PaymentService {
 }
 
 func (s *paymentService) ProcessPayment(ctx context.Context, order domain.PaymentOrderEvent) error {
-	slog.Info("Processing payment for order", 
+	slog.InfoContext(ctx, "Processing payment for order", 
 		"order_id", order.ID, 
 		"amount", order.TotalPrice.Units, 
 		"currency", order.TotalPrice.Currency)
@@ -31,7 +31,7 @@ func (s *paymentService) ProcessPayment(ctx context.Context, order domain.Paymen
 	// Simulate processing time
 	time.Sleep(500 * time.Millisecond)
 
-	slog.Info("Payment successful for order", "order_id", order.ID)
+	slog.InfoContext(ctx, "Payment successful for order", "order_id", order.ID)
 
 	// Publish PaymentCompletedEvent
 	event := domain.PaymentCompletedEvent{

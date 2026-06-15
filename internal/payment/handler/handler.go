@@ -20,16 +20,16 @@ func NewPaymentHandler(service domain.PaymentService) *PaymentHandler {
 }
 
 func (h *PaymentHandler) HandleOrderCreated(ctx context.Context, d amqp.Delivery) (error, bool) {
-	slog.Info("Received an order created event", "delivery_tag", d.DeliveryTag)
+	slog.InfoContext(ctx, "Received an order created event", "delivery_tag", d.DeliveryTag)
 
 	var order domain.PaymentOrderEvent
 	if err := json.Unmarshal(d.Body, &order); err != nil {
-		slog.Error("Fatal: Error decoding json (Dead Letter)", "error", err)
+		slog.ErrorContext(ctx, "Fatal: Error decoding json (Dead Letter)", "error", err)
 		return err, false // Fatal: Don't requeue malformed JSON
 	}
 
 	if err := h.service.ProcessPayment(ctx, order); err != nil {
-		slog.Error("Transient: Payment processing failed (Requeue)", "error", err)
+		slog.ErrorContext(ctx, "Transient: Payment processing failed (Requeue)", "error", err)
 		return err, true // Transient: Requeue for retry
 	}
 

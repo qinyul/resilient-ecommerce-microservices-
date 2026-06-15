@@ -120,7 +120,7 @@
             "type": "loki",
             "uid": "${loki_uid}"
           },
-          "expr": "{job=~\".+\"}",
+          "expr": "{job=~\".+\"} |~ \"$${trace_id}\"",
           "refId": "A"
         }
       ],
@@ -135,6 +135,29 @@
   ],
   "refresh": "5s",
   "schemaVersion": 38,
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "",
+          "value": ""
+        },
+        "hide": 0,
+        "name": "trace_id",
+        "options": [
+          {
+            "selected": true,
+            "text": "",
+            "value": ""
+          }
+        ],
+        "query": "",
+        "skipUrlSync": false,
+        "type": "textbox"
+      }
+    ]
+  },
   "style": "dark",
   "tags": ["microservices", "otel"],
   "time": {
